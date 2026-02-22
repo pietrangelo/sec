@@ -1,0 +1,51 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers only on tags starting with 'v' (e.g. v1.0, v2.3.4)
+
+jobs:
+  build-and-release:
+    runs-on: freebsd
+    steps:
+      # 1. Check out the code
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+        env:
+          GIT_SSL_NO_VERIFY: "true"
+
+      # 2. Check Go environment
+      - name: Check Go version
+        run: go version
+
+      - name: Debug - List files
+        run: ls -la
+
+      # 3. Run the Integrity Test Suite (Safety Check)
+      - name: Run Integrity Tests
+        run: |
+          chmod +x test.sh
+          ./test.sh
+
+      # 4. Build all binaries using the Makefile
+      - name: Build All Platforms
+        run: make all
+
+      # 5. Publish to Forgejo Releases
+      - name: Upload Release Assets
+        uses: https://github.com/softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            build/sec-linux-amd64
+            build/sec-windows-amd64.exe
+            build/sec-mac-amd64
+            build/sec-mac-arm64
+            build/sec-freebsd-amd64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_TLS_REJECT_UNAUTHORIZED: "0" # Needed to skipt tls errors
+          GITHUB_API_URL: https://127.0.0.1:3000/api/v1
