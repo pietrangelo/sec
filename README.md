@@ -10,7 +10,7 @@ on some public/private repository.
 
 ## Installation
 
-A script to install the latest release of sec from Forgejo.
+A script to install the latest release of sec from GitHub.
 
 Usage:
 
