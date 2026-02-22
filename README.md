@@ -14,7 +14,7 @@ A script to install the latest release of sec from Forgejo.
 
 Usage:
 
-> curl -skSL https://git.pietrangelo.org/pj/sec/raw/branch/main/install.sh | bash
+> curl -skSL https://raw.githubusercontent.com/pietrangelo/sec/refs/heads/main/install.sh | bash
 
 This script will:
 1. Detect the user's OS and architecture.
@@ -23,7 +23,7 @@ This script will:
 4. Move the binary to /usr/local/bin.
 5. Make the binary executable.
 
-**Note:** For Windows users: to download the latest version go to: https://git.pietrangelo.org/pj/sec/releases
+**Note:** For Windows users: to download the latest version go to: https://github.com/pietrangelo/sec/releases
 
 ## Architecture summary
 
