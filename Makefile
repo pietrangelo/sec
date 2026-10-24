@@ -29,12 +29,12 @@ build-all: $(BUILD_DIR) linux windows mac freebsd
 # Build for Linux (amd64)
 linux:
 	@echo "Building for Linux..."
-	GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 main.go
+	GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 .
 	@echo "Done."
 # Build for Windows (amd64)
 windows:
 	@echo "Building for Windows..."
-	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe main.go
+	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe .
 	@echo "Done."
 
 # Build for macOS (Universal Binary is harder in pure Go, so we build two versions)
@@ -43,17 +43,17 @@ mac: mac-intel mac-silicon
 
 mac-intel:
 	@echo "Building for macOS (Intel)..."
-	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-mac-amd64 main.go
+	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-mac-amd64 .
 
 mac-silicon:
 	@echo "Building for macOS (Apple Silicon)..."
-	GOOS=darwin GOARCH=arm64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-mac-arm64 main.go
+	GOOS=darwin GOARCH=arm64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-mac-arm64 .
 	@echo "Done."
 
 # Build fro FreeBSD
 freebsd:
 	@echo "Building for FreeBSD..."
-	GOOS=freebsd GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-freebsd-amd64 main.go
+	GOOS=freebsd GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-freebsd-amd64 .
 	@echo "Done."
 
 # Run tests (if you add them later)

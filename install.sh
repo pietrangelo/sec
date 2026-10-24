@@ -3,7 +3,7 @@
 # A script to install the latest release of sec from Forgejo.
 #
 # Usage:
-#   curl -skSL https://git.pietrangelo.org/pj/sec/raw/branch/main/install.sh | bash
+#   curl -fsSL https://git.pietrangelo.org/pj/sec/raw/branch/main/install.sh | bash
 #
 # This script will:
 # 1. Detect the user's OS and architecture.
@@ -65,7 +65,7 @@ get_latest_release_version() {
   local api_url="https://git.pietrangelo.org/api/v1/repos/${FORGEJO_REPO}/releases/latest"
 
   # Use curl with grep and sed to extract the tag name, avoiding a dependency on jq.
-  VERSION=$(curl -sk "$api_url" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  VERSION=$(curl -sSf "$api_url" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
   if [ -z "$VERSION" ]; then
     err "Could not fetch the latest release version. Please check that the FORGEJO_REPO variable is set correctly."
@@ -83,7 +83,7 @@ download_and_install() {
   trap 'rm -rf "$tmp_dir"' EXIT
 
   msg "Downloading from $download_url"
-  if ! curl -kL "$download_url" -o "${tmp_dir}/${asset_filename}"; then
+  if ! curl -fL "$download_url" -o "${tmp_dir}/${asset_filename}"; then
     err "Failed to download the release asset. Please check the URL and your network connection."
   fi
 

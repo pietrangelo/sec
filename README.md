@@ -14,7 +14,7 @@ A script to install the latest release of sec from GitHub.
 
 Usage:
 
-> curl -skSL https://raw.githubusercontent.com/pietrangelo/sec/refs/heads/main/install.sh | bash
+> curl -fsSL https://raw.githubusercontent.com/pietrangelo/sec/refs/heads/main/install.sh | bash
 
 This script will:
 1. Detect the user's OS and architecture.
@@ -25,31 +25,50 @@ This script will:
 
 **Note:** For Windows users: to download the latest version go to: https://github.com/pietrangelo/sec/releases
 
-## Architecture summary
+## Keys and passphrases
 
-**User Input**: The flags (-file, -mode, -pass) enter the `sec` tool.
+sec accepts either a random key or a passphrase:
 
-**Validation**: The app checks if the file exists and the passphrase is not empty.
+```bash
+# Recommended: a random 256-bit key, stored outside the repository
+sec -mode=genkey > ~/.config/sec/project.key
+sec -mode=encrypt -file=secrets.json -keyfile=~/.config/sec/project.key
+# or: export SEC_TOOL_KEY="$(cat ~/.config/sec/project.key)"
 
-**Setup**:
+# Or a passphrase, stretched with Argon2id
+export SEC_TOOL_PASS="a long passphrase"
+sec -mode=encrypt -file=secrets.json
+```
 
-`Argon2` runs to turn the password into a 32-byte key.
+A key is the better choice for automation (git filters, CI, cloud sessions): it is
+required for `-deterministic` and it skips the Argon2id cost on every file. The
+`-pass` flag still works but is deprecated, because command line arguments are
+visible to other processes and end up in shell history.
 
-`ChaCha20` initialises.
+## File format (v2)
 
-**The Loop (Streaming)**:
+```
+"SEC\x02" | kdf | [argon2id: time, memory, threads, salt] | nonce prefix (16) | chunks
+```
 
-1. Reads 64KB chunk.
-
-2. Encrypts chunk.
-
-3. Increments Nonce.
-
-4. Writes chunk to .tmp.
-
-5. Updates Progress Bar.
-
-6. Finalisation: The .tmp file replaces the original file on disk.
+- **Key derivation**: the master key is the raw key, or Argon2id(passphrase, salt)
+  with t=3, 64 MiB, 4 threads (RFC 9106). The parameters are stored in the header,
+  so they can be raised later without breaking old files.
+- **Per-file key**: HKDF-SHA256(master, nonce prefix) gives each file its own key.
+- **Encryption**: XChaCha20-Poly1305 over 64 KiB chunks, using the STREAM
+  construction: each chunk's nonce carries a counter and its associated data carries
+  the header and a "final chunk" flag. Reordered, dropped, truncated or appended
+  chunks are all rejected, as is any change to the header.
+- **Deterministic mode** (`-deterministic`, key only): the nonce prefix is an
+  HMAC-SHA256 of the plaintext (a synthetic IV, as in git-crypt), so encrypting the
+  same file twice gives the same bytes. Git filters need this, otherwise every
+  `git status` reports encrypted files as modified. It reveals only whether two
+  files are identical.
+- **Files**: in file mode the output goes to a private temporary file that replaces
+  the original, keeping its permissions, only after the whole file was processed
+  and authenticated.
+- **Legacy**: files written by sec v1 are still decrypted (with the passphrase), but
+  v1 cannot detect truncation, so re-encrypt them.
 
 ## Use sec with git
 
@@ -62,14 +81,14 @@ To use the `sec` tool with git we'll use **Git Filters** which will make encrypt
 We need to tell Git about our `sec` tool using custom filters. We can create them both per repository or globally.
 
 ```bash
-# Define the 'clean' filter (Runs on 'git add' -> encrypts)
-git config filter.sec.clean "sec -mode=encrypt -file=-"
+# Define the 'clean' filter (Runs on 'git add' -> encrypts, same output for same input)
+git config filter.sec.clean "sec -mode=encrypt -deterministic -file=-"
 
 # Define the 'smudge' filter (Runs on 'checkout' -> decrypts)
 git config filter.sec.smudge "sec -mode=decrypt -file=-"
 
 # Tell Git this filter is required (prevents committing unencrypted if sec tool fails)
-config filter.sec.required true
+git config filter.sec.required true
 ```
 
 To assign files to the filter we need to create a `.gitattributes` file in the root of our repository.
@@ -82,13 +101,13 @@ To assign files to the filter we need to create a `.gitattributes` file in the r
 config.json filter=sec
 ```
 
-Because Git runs these commands in the background, we cannot type the password every time. We must set the environment
- variable in our terminal session.
+Because Git runs these commands in the background, we cannot type a secret every time. We must set the key in an
+environment variable in our terminal session.
 
 ```bash
 
-# 1. Set your password for the session
-export SEC_TOOL_PASS="my-super-secret"
+# 1. Set your key for the session
+export SEC_TOOL_KEY="$(cat ~/.config/sec/project.key)"
 
 # 2. Create a secret file
 echo "This is a secret" > data.secret
@@ -111,15 +130,15 @@ git commit -m "Add secret"
 
 #### Automating the Password (Optional)
 
-If we don't want to export the password every time, we can create a wrapper script.
+If we don't want to export the key every time, we can create a wrapper script.
 
 Create `/usr/local/bin/git-encrypt-wrapper`:
 
 ```bash
 
 #!/usr/bin/env bash
-# Hardcode password or fetch from a Vault/Keyring
-export SEC_TOOL_PASS="correct-horse-battery-staple"
+# Read the key from a file outside the repository, or fetch it from a Vault/Keyring
+export SEC_TOOL_KEY="$(cat ~/.config/sec/project.key)"
 /usr/local/bin/sec "$@"
 ```
 Then update our git config to use git-encrypt-wrapper instead of sec.
