@@ -3,7 +3,7 @@
 # Settings
 TOOL_NAME="./sec"
 TEST_FILE="test_secret.dat"
-PASS="super-secure-password"
+KEY_FILE="test.key"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -22,7 +22,7 @@ calculate_hash() {
     sha256sum "$1" | awk '{ print $1 }'
   elif command -v shasum >/dev/null 2>&1; then
     # macOS
-    shasum -a 256 "$1" | awk '{ pring $1 }'
+    shasum -a 256 "$1" | awk '{ print $1 }'
   else
     echo "Error: No SHA256 utility found."
     exit 1
@@ -33,11 +33,14 @@ echo "--- Starting Integrity Test ---"
 
 # 1. Build the tool first to ensure we test the latest code
 echo "Building tool..."
-go build -o "$TOOL_NAME" main.go
+go build -o "$TOOL_NAME" .
 if [ $? -ne 0 ]; then
   echo -e "${RED}Build failed!${NC}"
   exit 1
 fi
+
+# Generate a throwaway key for the test
+$TOOL_NAME -mode=genkey > $KEY_FILE
 
 # 2. Create a random 10MB file
 echo "Creating 10MB random file..."
@@ -49,7 +52,7 @@ echo "Original Hash: $ORIGINAL_HASH"
 
 # 4. Encrypt
 echo "Encrypting..."
-$TOOL_NAME -mode=encrypt -file=$TEST_FILE -pass=$PASS
+$TOOL_NAME -mode=encrypt -file=$TEST_FILE -keyfile=$KEY_FILE
 if [ $? -ne 0 ]; then
   echo -e "${RED}Encryption crashed!${NC}"
   exit 1
@@ -65,7 +68,7 @@ fi
 
 # 5. Decrypt
 echo "Decrypting..."
-$TOOL_NAME -mode=decrypt -file=$TEST_FILE -pass=$PASS
+$TOOL_NAME -mode=decrypt -file=$TEST_FILE -keyfile=$KEY_FILE
 if [ $? -ne 0 ]; then
   echo -e "${RED}Decryption crashed!${NC}"
   exit 1
@@ -77,7 +80,7 @@ echo "Final Hash:    $FINAL_HASH"
 
 if [ "$ORIGINAL_HASH" == "$FINAL_HASH" ]; then
   echo -e "${GREEN}SUCCESS: Decrypted file matches original exactly.${NC}"
-  rm $TEST_FILE
+  rm $TEST_FILE $KEY_FILE
   rm $TOOL_NAME
   exit 0
 else
